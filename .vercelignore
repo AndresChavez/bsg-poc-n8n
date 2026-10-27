@@ -1,0 +1,14 @@
+# Configuración privada y entornos de desarrollo.
+.env
+.env.*
+.venv/
+venv/
+.git/
+.vercel/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Las pruebas se conservan en Git, pero no forman parte del despliegue.
+tests/

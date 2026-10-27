@@ -1,0 +1,40 @@
+/* Ejecutar en un navegador con vendor/, markdown.js y estilos.css cargados. */
+(()=>{'use strict';
+ const fallos=[];let total=0;
+ const check=(valor,nombre)=>{total++;if(!valor)fallos.push(nombre);};
+ const render=window.MilOficiosMarkdown.render;
+ const resultado=render('Encontré **un cliente**.\n\n- **PE-SOL-00000003**: completado\n- `PE-SOL-00000002`: pendiente');
+ check(resultado.querySelector('p strong')?.textContent==='un cliente','Negrita dentro del párrafo');
+ check(!resultado.textContent.includes('**'),'No mostrar delimitadores de negrita');
+ check(resultado.querySelectorAll('ul > li').length===2,'Lista de servicios');
+ check(resultado.querySelector('code')?.textContent==='PE-SOL-00000002','Código exacto');
+ const contenedor=document.createElement('div');contenedor.className='mensaje-chat agente';contenedor.hidden=true;contenedor.append(resultado);document.body.append(contenedor);
+ check(getComputedStyle(resultado.querySelector('strong')).display==='inline','Negrita no rompe el párrafo');
+ check(render('1. Uno\n2. Dos').querySelectorAll('ol > li').length===2,'Lista numerada');
+ check(render('- Uno\n  - Dos').querySelectorAll('ul ul li').length===1,'Lista anidada');
+ check(render('*cursiva* y ~~tachado~~').querySelector('em')?.textContent==='cursiva','Cursiva');
+ check(render('*cursiva* y ~~tachado~~').querySelector('del')?.textContent==='tachado','Tachado');
+ check(render('Línea uno\nLínea dos').querySelector('br')!==null,'Salto de línea');
+ check(render('```\n<strong>literal</strong>\n```').querySelector('pre code')?.textContent.trim()==='<strong>literal</strong>','Código conserva texto literal');
+ check(render('| Código | Estado |\n| --- | --- |\n| ABC | Listo |').querySelectorAll('tbody td').length===2,'Tabla');
+ check(render('### Detalle\n\n> Texto').querySelector('blockquote')?.textContent.trim()==='Texto','Títulos y citas');
+ const ataque=render('<script>window.__markdownAtaque=1</script><img src="https://example.invalid/track" onerror="window.__markdownAtaque=1"><svg onload="window.__markdownAtaque=1"></svg><iframe src="https://example.invalid"></iframe><form><input name="codigo"></form><style>body{display:none}</style>');
+ check(!ataque.querySelector('script,img,svg,iframe,form,input,style'),'Eliminar elementos activos y cargas externas');
+ const evento=render('<strong onclick="alert(1)" style="color:red" id="codigo" data-x="1">Seguro</strong>');
+ check(evento.querySelector('strong')?.attributes.length===0,'Eliminar eventos, estilos, ids y data attributes');
+ for(const href of ['javascript:alert(1)','data:text/html,unsafe','vbscript:msgbox(1)','jav&#x61;script:alert(1)']){
+  check(!render('<a href="'+href+'">Enlace</a>').querySelector('a[href]'),'Bloquear protocolo peligroso: '+href);
+ }
+ const enlace=render('[Políticas](https://example.com/politicas)').querySelector('a');
+ check(enlace?.getAttribute('href')==='https://example.com/politicas','Conservar HTTPS');
+ check(enlace?.target==='_blank'&&enlace?.rel==='noopener noreferrer','Abrir enlace sin acceso a la pestaña');
+ check(!window.__markdownAtaque,'No ejecutar payload');
+ const marcado=window.marked;window.marked=undefined;
+ const respaldo=render('**Texto** <img src=x onerror=alert(1)>');window.marked=marcado;
+ check(respaldo.classList.contains('texto-plano')&&respaldo.textContent==='**Texto** <img src=x onerror=alert(1)>'&&!respaldo.querySelector('img'),'Fallback seguro sin parser');
+ const saneador=window.DOMPurify;window.DOMPurify=undefined;
+ const sinSaneador=render('**Texto**');window.DOMPurify=saneador;
+ check(sinSaneador.classList.contains('texto-plano')&&!sinSaneador.querySelector('strong'),'Fallback seguro sin saneador');
+ contenedor.remove();
+ const informe=document.createElement('p');informe.id='resultado-pruebas';informe.textContent=fallos.length?'FAIL: '+fallos.join('; '):'PASS · '+total+' comprobaciones de Markdown y saneamiento · datos ficticios';informe.style.cssText='padding:12px;background:#eef6ff;border:1px solid #aac;';document.body.prepend(informe);
+})();
